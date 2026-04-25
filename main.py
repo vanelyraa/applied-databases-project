@@ -7,7 +7,6 @@ neo4j_driver = GraphDatabase.driver(
     "neo4j://localhost:7687",
     auth=("neo4j", "12345678"), max_connection_lifetime=1000)
 
-
 #MySQL connection
 conn = mysql.connector.connect(
     host="localhost",
@@ -15,7 +14,7 @@ conn = mysql.connector.connect(
     password="0205",
     database="appdbproj"
 )
-mysql_cursor = conn.cursor()
+mysql_cursor = conn.cursor(dictionary=True)
 
 
 def main():
@@ -35,37 +34,42 @@ def main():
             view_connections()
         elif choice == "5":
             add_connection()
-        elif choice == "6":
-            view_rooms()
+        elif choice == "6":            
+            view_rooms()            
         elif choice == "x":
             break
         else: 
             display_menu()
 
 def view_speakers():
+    print("Test")
     
-
 def view_attendees_by_company():
-
+    print("Test")
 
 def add_attendee():
-
+    print("Test")
 
 def view_connections():
-
+    print("Test")
 
 def add_connection():
+    print("Test")
 
+def view_rooms(): 
+    mysql_cursor.execute("select roomID, roomName, capacity from room")
+    results = mysql_cursor.fetchall()   
+    print("\nRoomID | RoomName | Capacity")
 
-def view_rooms():
-    
-    
+    for result in results:
+        print(result["roomID"],"|", result["roomName"],"|", result["capacity"])  
+
 def display_menu():
     
-    print("\nConference Management\n")
-    print("\n---------------------\n\n")
-    print("\nMENU\n")
-    print("\n====\n")
+    print("\nConference Management")
+    print("---------------------\n")
+    print("MENU")
+    print("====")
     print("1 - View Speakers & Sessions")
     print("2 - View Attendees by Company")
     print("3 - Add New Attendee")
@@ -75,5 +79,9 @@ def display_menu():
     print("x - Exit")
 
 
-if__name__== "__main__":
+if __name__== "__main__":
     main()
+
+
+# dictionary=True: https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursordict.html
+# SQL command block: https://www.geeksforgeeks.org/python/sql-using-python/
