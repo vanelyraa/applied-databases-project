@@ -69,7 +69,54 @@ def view_attendees_by_company():
     print("Test")
 
 def add_attendee():
-    print("Test")
+
+    print("\nAdd New Attendee")
+    print("------------------")
+
+    try:
+        attendee_id = input("Attendee ID: ")
+        name = input("Name: ")
+        dob = input("DOB: ")
+        gender = input("Gender: ")
+        company_id = input("Company ID: ")
+
+        # Checking duplicated attendee ID
+        mysql_cursor.execute(
+            "SELECT * FROM attendee WHERE attendeeID = %s",
+            (attendee_id,)
+        )
+        if mysql_cursor.fetchall():
+            print(f"*** ERROR *** Attendee ID: {attendee_id} already exists")
+            return
+
+        # Checking valid gender 
+        if gender not in ["Male", "Female"]:
+            print("*** ERROR *** Gender must be Male/Female")
+            return
+       
+        # Checking existing company ID
+        mysql_cursor.execute(
+            "SELECT * FROM company WHERE companyID = %s",
+            (company_id,)
+        )
+        if not mysql_cursor.fetchall():
+            print(f"*** ERROR *** Company ID: {company_id} does not exist")
+            return
+
+        # Add new attendee query
+        sql = """
+        INSERT INTO attendee (attendeeID, attendeeName, attendeeDOB, attendeeGender, attendeeCompanyID)
+        VALUES (%s, %s, %s, %s, %s)
+        """
+
+        mysql_cursor.execute(sql, (attendee_id, name, dob, gender, company_id))
+        conn.commit()
+
+        print("Attendee successfully added")
+
+    # Other errors handling
+    except Exception as e:
+        print("*** ERROR ***", e)
 
 def view_connections():
     print("Test")
@@ -107,3 +154,6 @@ if __name__== "__main__":
 # dictionary=True: https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursordict.html
 # SQL command block: https://www.geeksforgeeks.org/python/sql-using-python/
 # Return results from substring: https://chatgpt.com/share/69ecddd4-d850-83eb-9a32-e1dd66bc1b15
+# User input error handling: https://dev.to/fosres/week-4-sql-injection-audit-challenge-le7
+# Try/Except code block: https://medium.com/@icodewithben/data-validation-in-python-range-type-presence-and-form-aaefe8835a86
+
