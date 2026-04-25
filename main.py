@@ -42,7 +42,28 @@ def main():
             display_menu()
 
 def view_speakers():
-    print("Test")
+    speaker_name = input("\nEnter speaker name: ")
+
+    sql = """
+    select ss.speakerName, ss.sessionTitle, rm.roomName
+    from session ss
+    inner join room rm
+        on ss.roomID = rm.roomID
+    where ss.speakerName like %s
+    """
+
+    mysql_cursor.execute(sql,(f"%{speaker_name}%",))
+    results = mysql_cursor.fetchall()
+
+    print(f"Session Details For : {speaker_name}")
+    print("----------------------------------------------")
+
+    if results:
+        for result in results:
+            print(result["speakerName"],"|", result["sessionTitle"],"|", result["roomName"])
+    else:
+        print("No speakers found of that name")
+
     
 def view_attendees_by_company():
     print("Test")
@@ -85,3 +106,4 @@ if __name__== "__main__":
 
 # dictionary=True: https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursordict.html
 # SQL command block: https://www.geeksforgeeks.org/python/sql-using-python/
+# Return results from substring: https://chatgpt.com/share/69ecddd4-d850-83eb-9a32-e1dd66bc1b15
