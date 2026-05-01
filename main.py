@@ -42,8 +42,10 @@ def main():
             display_menu()
 
 def view_speakers():
+    # User input message
     speaker_name = input("\nEnter speaker name: ")
 
+    #SQL query
     sql = """
     select ss.speakerName, ss.sessionTitle, rm.roomName
     from session ss
@@ -52,12 +54,16 @@ def view_speakers():
     where ss.speakerName like %s
     """
 
+    # Running query with partial string match
     mysql_cursor.execute(sql,(f"%{speaker_name}%",))
+    
+    # Fetching and storing rows returned by query 
     results = mysql_cursor.fetchall()
 
     print(f"Session Details For : {speaker_name}")
     print("----------------------------------------------")
 
+    # Loop through result and print results or no found message
     if results:
         for result in results:
             print(result["speakerName"],"|", result["sessionTitle"],"|", result["roomName"])
@@ -66,14 +72,75 @@ def view_speakers():
 
     
 def view_attendees_by_company():
-    print("Test")
+    # Asking user to enter a valid company ID until one has been entered
+    while True:
+        company_id = input("Enter Company ID: ")
+
+        # Validating positive numbers
+        if not company_id.isdigit() or int(company_id) <= 0:
+            continue
+
+        # Checking if company exists block
+        # Execute query,fecth results, if no results found, print message to user
+        mysql_cursor.execute(
+            "SELECT companyName FROM company WHERE companyID = %s",
+            (company_id,)
+        )
+        company = mysql_cursor.fetchall()
+
+        if not company:
+            print(f"Company with ID {company_id} doesn't exist")
+            return
+
+        #If company exists, print company name
+        company_name = company["companyName"]
+        print(f"\n{company_name} Attendees")
+        
+        # Query to fetch attendees + sessions + rooms
+        sql = """
+        SELECT 
+            a.attendeeName,
+            a.attendeeDOB,
+            s.sessionTitle,
+            s.speakerName,
+            s.sessionDate,
+            r.roomName
+        FROM attendee a
+        INNER JOIN registration reg ON a.attendeeID = reg.attendeeID
+        INNER JOIN session s ON reg.sessionID = s.sessionID
+        INNER JOIN room r ON s.roomID = r.roomID
+        WHERE a.attendeeCompanyID = %s
+        """
+
+        # Executing query and fetching results
+        mysql_cursor.execute(sql, (company_id,))
+        results = mysql_cursor.fetchall()
+
+        # No atendees print statement
+        if not results:
+            print(f"No attendees found for {company_name}")
+            return
+
+        # Printing results if found
+        for row in results:
+            print(
+                row["attendeeName"], "|",
+                row["attendeeDOB"], "|",
+                row["sessionTitle"], "|",
+                row["speakerName"], "|",
+                row["sessionDate"], "|",
+                row["roomName"]
+            )
+        return
 
 def add_attendee():
 
     print("\nAdd New Attendee")
     print("------------------")
-
+    
+    #Try/Except block for error handling
     try:
+        # Getting atendee info from user input 
         attendee_id = input("Attendee ID: ")
         name = input("Name: ")
         dob = input("DOB: ")
@@ -109,6 +176,7 @@ def add_attendee():
         VALUES (%s, %s, %s, %s, %s)
         """
 
+        #Executing insert query with user input and committing changes
         mysql_cursor.execute(sql, (attendee_id, name, dob, gender, company_id))
         conn.commit()
 
@@ -125,10 +193,14 @@ def add_connection():
     print("Test")
 
 def view_rooms(): 
+    # Executing query and fetching results
     mysql_cursor.execute("select roomID, roomName, capacity from room")
     results = mysql_cursor.fetchall()   
+
+    # Header print statement for user
     print("\nRoomID | RoomName | Capacity")
 
+    # Looping through results and printing
     for result in results:
         print(result["roomID"],"|", result["roomName"],"|", result["capacity"])  
 
@@ -156,4 +228,5 @@ if __name__== "__main__":
 # Return results from substring: https://chatgpt.com/share/69ecddd4-d850-83eb-9a32-e1dd66bc1b15
 # User input error handling: https://dev.to/fosres/week-4-sql-injection-audit-challenge-le7
 # Try/Except code block: https://medium.com/@icodewithben/data-validation-in-python-range-type-presence-and-form-aaefe8835a86
-
+# Error message conditions 3.1.4.1: https://stackoverflow.com/questions/19382396/print-if-mysql-returns-no-results
+# Validade integer: https://stackoverflow.com/questions/16335771/shorter-way-to-check-if-a-string-is-not-isdigit
