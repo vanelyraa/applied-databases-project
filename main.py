@@ -190,8 +190,65 @@ def view_connections():
     print("Test")
 
 def add_connection():
-    print("Test")
 
+    while True:
+
+        # Getting attendees IDs from user
+        attendee1 = input("Enter Attendee 1 ID: ")
+        attendee2 = input("Enter Attendee 2 ID: ")
+
+        # Validating IDs as number and print statement
+        if not attendee1.isdigit() or not attendee2.isdigit():
+            print("*** ERROR *** Attendee IDs must be numbers")
+            continue
+
+        # Same atendee ID check
+        if attendee1 == attendee2:
+            print("*** ERROR *** An attendee cannot connect to him/herself")
+            continue
+
+        # Checking if both attendees exist in MySQL
+        mysql_cursor.execute("SELECT * FROM attendee WHERE attendeeID = %s", (attendee1,))
+        id1= mysql_cursor.fetchone()
+            
+        mysql_cursor.execute("SELECT * FROM attendee WHERE attendeeID = %s", (attendee2,))
+        id2= mysql_cursor.fetchone()
+
+        if not id1 or not id2:
+            print("*** ERROR *** One or both attendee IDs do not exist")
+            continue
+        
+        # Neoj4 session
+        with neo4j_driver.session() as session:
+
+            # Checking if connection exists
+            connection_query = """
+            MATCH (a:Attendee {AttendeeID: $id1})-[:CONNECTED_TO]-(b:Attendee {AttendeeID: $id2})
+            RETURN b
+            """
+
+            # Running query with user inputs
+            result = session.run(connection_query, id1=int(attendee1), id2=int(attendee2))
+            records = list(result)
+
+            # If records found, connection exists
+            if records:
+                print("***ERROR*** These attendees are already connected")
+                continue
+
+            # Createing missing nodes and adding connection
+            creation_query = """
+            MERGE (a:Attendee {AttendeeID: $id1})
+            MERGE (b:Attendee {AttendeeID: $id2})
+            CREATE (a)-[:CONNECTED_TO]->(b)
+            """
+
+            session.run(creation_query, id1=int(attendee1), id2=int(attendee2))
+
+            print(f"Attendee {attendee1} is now connected to Attendee {attendee2}")
+    
+            break
+    
 def view_rooms(): 
     # Executing query and fetching results
     mysql_cursor.execute("select roomID, roomName, capacity from room")
@@ -230,3 +287,4 @@ if __name__== "__main__":
 # Try/Except code block: https://medium.com/@icodewithben/data-validation-in-python-range-type-presence-and-form-aaefe8835a86
 # Error message conditions 3.1.4.1: https://stackoverflow.com/questions/19382396/print-if-mysql-returns-no-results
 # Validade integer: https://stackoverflow.com/questions/16335771/shorter-way-to-check-if-a-string-is-not-isdigit
+# Neoj4 session: https://neo4j.com/docs/python-manual/current/transactions/
