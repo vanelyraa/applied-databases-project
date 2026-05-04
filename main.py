@@ -187,7 +187,65 @@ def add_attendee():
         print("*** ERROR ***", e)
 
 def view_connections():
-    print("Test")
+    while True:
+        # Getting attendee IDs from user
+        attendee_id = input("Enter Attendee ID : ")
+        
+        # Validating IDs as number
+        if not attendee_id.isdigit():
+            print("***ERROR *** Invalid attendee ID")
+            continue
+
+        attendee_id = int(attendee_id)
+        
+        # SQL query, find attendee by ID
+        mysql_cursor.execute(
+            "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
+            (attendee_id,)
+        )
+        attendee = mysql_cursor.fetchall()
+
+        # Attendee does not exist print statement
+        if not attendee:
+            print("***ERROR *** Attendee does not exist")
+            continue
+
+        attendee_name = attendee["attendeeName"]
+
+        # Checking Neo4j connections query
+        with neo4j_driver.session() as session:
+            query = """
+            MATCH (a:Attendee {AttendeeID: $id})
+            OPTIONAL MATCH (a)-[:CONNECTED_TO]-(b:Attendee)
+            RETURN b.AttendeeID AS id
+            """
+
+            #Running query and extracting connected Ids if any
+            result = session.run(query, id=attendee_id)
+            records = [r["id"] for r in result if r["id"] is not None]
+
+        # Output to user
+        print(f"\nAttendee Name: {attendee_name}")
+        print("--------------------------------")
+
+        #User doesn't exist in Neoj4
+        if not records:
+            print("No connections")
+            return
+
+        print("These attendees are connected:")
+        
+        #Looping through attendee ID and retrieving SQL attendee info if any
+        for conn_id in records:
+            mysql_cursor.execute(
+                "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
+                (conn_id,)
+            )
+            conn = mysql_cursor.fetchall()
+
+            if conn:
+                print(f"{conn_id} | {conn['attendeeName']}")
+        return
 
 def add_connection():
 
