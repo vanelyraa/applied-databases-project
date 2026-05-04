@@ -35,7 +35,9 @@ def main():
         elif choice == "5":
             add_connection()
         elif choice == "6":            
-            view_rooms()            
+            view_rooms()
+        elif choice == "7":
+            top_attendees()           
         elif choice == "x":
             break
         else: 
@@ -236,15 +238,15 @@ def view_connections():
         print("These attendees are connected:")
         
         #Looping through attendee ID and retrieving SQL attendee info if any
-        for conn_id in records:
+        for row in records:
             mysql_cursor.execute(
                 "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
-                (conn_id,)
+                (row,)
             )
             conn = mysql_cursor.fetchall()
 
             if conn:
-                print(f"{conn_id} | {conn['attendeeName']}")
+                print(f"{row} | {conn['attendeeName']}")
         return
 
 def add_connection():
@@ -319,6 +321,36 @@ def view_rooms():
     for result in results:
         print(result["roomID"],"|", result["roomName"],"|", result["capacity"])  
 
+def top_attendees():
+
+    # Top attendee
+    print("\nTop 5 Connected Attendees")
+    print("------------------\n")
+
+    # Fetching number of connections, order by highest to lowest and return top 5
+    with neo4j_driver.session() as session:
+        query = """
+        MATCH (a:Attendee)
+        OPTIONAL MATCH (a)-[:CONNECTED_TO]-(b)
+        RETURN a.AttendeeID AS id, COUNT(b) AS connections
+        ORDER BY connections DESC
+        LIMIT 5
+        """
+
+        # Running query
+        result = session.run(query)
+
+        # Fetch top connected attendees in SQL and printing 
+        for row in result:   
+            mysql_cursor.execute(
+                "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
+                (row["id"],)
+            )
+            row = mysql_cursor.fetchone()
+            print(f"{result['id']} | {row['attendeeName']} | {result['connections']}")
+
+    
+
 def display_menu():
     
     print("\nConference Management")
@@ -331,6 +363,7 @@ def display_menu():
     print("4 - View Connected Attendees")
     print("5 - Add Attendee Connection")
     print("6 - View Rooms")
+    print("7 - Top connected attendees")
     print("x - Exit")
 
 
@@ -346,3 +379,5 @@ if __name__== "__main__":
 # Error message conditions 3.1.4.1: https://stackoverflow.com/questions/19382396/print-if-mysql-returns-no-results
 # Validade integer: https://stackoverflow.com/questions/16335771/shorter-way-to-check-if-a-string-is-not-isdigit
 # Neoj4 session: https://neo4j.com/docs/python-manual/current/transactions/
+# Order by and limit: https://stackoverflow.com/questions/58438626/neo4j-query-for-most-common-relationship
+# Fetch one/all: https://www.geeksforgeeks.org/dbms/querying-data-from-a-database-using-fetchone-and-fetchall/
