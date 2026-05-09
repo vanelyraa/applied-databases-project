@@ -3,21 +3,34 @@ from neo4j import GraphDatabase
 import mysql.connector
 import time
 
+# User inputs SQL and Neo4j credentials for connection
+mysql_user = input("Enter MySQL username: ")
+mysql_password = input("Enter MySQL password: ")
+
+neo4j_user = input("Enter Neo4j username: ")
+neo4j_password = input("Enter Neo4j password: ")
+
 #Neo4j connection
+#print("Connecting to Neo4j...") #Test print statement, testing DB connection in VM 
 neo4j_driver = GraphDatabase.driver(
     "neo4j://localhost:7687",
-    auth=("neo4j", "12345678"), max_connection_lifetime=1000)
+    auth=(neo4j_user, neo4j_password), max_connection_lifetime=1000)
 
-#MySQL connection
+# print("Neo4j connected") #Test print statement, testing DB connection in VM 
+
+# MySQL connection
+# print("Connecting to MySQL...") #Test print statement, testing DB connection in VM 
 conn = mysql.connector.connect(
     host="localhost",
-    user="root",
-    password="0205",
+    user=mysql_user,
+    password=mysql_password,
     database="appdbproj"
 )
 mysql_cursor = conn.cursor(dictionary=True)
 
+# print("MySQL connected") #Test print statement, testing DB connection in VM 
 
+# Running functions based on user menu choice and returning to main menu
 def main():
     
     while True:
@@ -46,7 +59,7 @@ def main():
         elif choice == "x":
             break
 
-        time.sleep(3)
+        time.sleep(3) #3 seconds pause before returning to main menu
 
 def view_speakers():
     # User input message
@@ -67,6 +80,7 @@ def view_speakers():
     # Fetching and storing rows returned by query 
     results = mysql_cursor.fetchall()
 
+    # User print statements 
     print(f"Session Details For : {speaker_name}")
     print("----------------------------------------------")
 
@@ -142,7 +156,7 @@ def view_attendees_by_company():
         return
 
 def add_attendee():
-
+    
     print("\nAdd New Attendee")
     print("------------------")
     
@@ -284,7 +298,7 @@ def add_connection():
             print("*** ERROR *** One or both attendee IDs do not exist")
             continue
         
-        # Neo4j session
+        # Running Neo4j session to check existing connections and create new connection if needed
         with neo4j_driver.session(database="attendeenetwork") as session:
 
             # Checking if connection exists
@@ -297,26 +311,26 @@ def add_connection():
             result = session.run(connection_query, id1=int(attendee1), id2=int(attendee2))
             records = list(result)
 
-            # If records found, connection exists
+            # If records found, connection exists, print statement
             if records:
                 print("***ERROR*** These attendees are already connected")
                 continue
 
-            # Createing missing nodes and adding connection
+            # Creating missing nodes and adding connection
             creation_query = """
             MERGE (a:Attendee {AttendeeID: $id1})
             MERGE (b:Attendee {AttendeeID: $id2})
             CREATE (a)-[:CONNECTED_TO]->(b)
             """
 
+            # Execute query with user inputs, converting user inputs to integer to match Neo4j id values stored
             session.run(creation_query, id1=int(attendee1), id2=int(attendee2))
-
             print(f"Attendee {attendee1} is now connected to Attendee {attendee2}")
     
-            break
+        break
     
 def view_rooms(): 
-    # Executing query and fetching results
+    # Executing SQL query and fetching results
     mysql_cursor.execute("select roomID, roomName, capacity from room")
     results = mysql_cursor.fetchall()   
 
@@ -329,11 +343,11 @@ def view_rooms():
 
 def top_attendees():
 
-    # Top attendee
+    # Top attendee print statement
     print("\nTop 5 Connected Attendees")
     print("---------------------------")
 
-    # Fetching number of connections, order by highest to lowest and return top 5
+    # Fetching number of connections, order by highest to lowest and returning top 5
     with neo4j_driver.session(database="attendeenetwork") as session:
         query = """
         MATCH (a:Attendee)
@@ -343,15 +357,16 @@ def top_attendees():
         LIMIT 5
         """
 
-        # Running query
+        # Running query Neo4j query
         result = session.run(query)
 
-        # Fetch top connected attendees in SQL and printing 
+        # Fetching top connected attendees in SQL and printing 
         for row in result:   
             mysql_cursor.execute(
                 "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
                 (row["id"],)            
             )
+            # Fetching attendee returned by SQL query
             atendee = mysql_cursor.fetchone()
             print(f"{row['id']} | {atendee['attendeeName']} | {row['connections']}")
 
@@ -362,29 +377,32 @@ def suggested_connections():
     while True:
         attendee_id = input("\n Enter your ID: ")
 
-        # Validate numeric input
+        # Validating numeric input
         if not attendee_id.isdigit():
             print("*** ERROR *** Invalid attendee ID")
             continue
 
         attendee_id = int(attendee_id)
 
-        # Check attendee by ID
+        # Executing SQL query to retrieve attendee name by ID
         mysql_cursor.execute(
             "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
             (attendee_id,)
         )
         attendee = mysql_cursor.fetchone()
 
+        # If attendee id not found, print statement to user
         if not attendee:
             print("*** ERROR *** Attendee does not exist")
-            continue
+            continue #Let user try id input again
 
         print(f"\nSuggested Connections For {attendee['attendeeName']}")
         print("---------------------------------------")
 
+        # Opening Neo4j session
         with neo4j_driver.session(database="attendeenetwork") as session:
 
+            # Neo4j query, find attendee suggestions through mutual connections, excluding existing connections and own attendee
             query = """
             MATCH (a:Attendee {AttendeeID:$id})-[:CONNECTED_TO]-(connection)-[:CONNECTED_TO]-(newconnection)
 
@@ -393,17 +411,20 @@ def suggested_connections():
 
             RETURN newconnection.AttendeeID AS id
             """
-        
+            
+            # Running query with user input
             result = session.run(query, id=attendee_id)
 
+            # Converting Neo4j query results into a list
             records = list(result)
 
+            # If no suggestion found, print statement to user
             if not records:
                 print("No suggested connections found")
                 return
-
+            
+            # Looping through suggested attendee IDs and retrieve attendee names from MySQL
             for row in records:
-
                 mysql_cursor.execute(
                     "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
                     (row["id"],)
@@ -434,7 +455,7 @@ def connection_path():
             print("*** ERROR *** Attendees must be different")
             continue
 
-        # Checking if attendees exist in MySQL
+        # Checking if both attendees exist in MySQL
         mysql_cursor.execute(
             "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
             (attendee1,)
@@ -447,13 +468,15 @@ def connection_path():
         )
         id2 = mysql_cursor.fetchone()
 
+        # If one of both ids not found, print to user
         if not id1 or not id2:
             print("*** ERROR *** One or both attendee IDs do not exist")
             continue
 
-        # Neo4j session
+        # Opening Neo4j session
         with neo4j_driver.session(database="attendeenetwork") as session:
 
+            # Query verify shortest connection path between users    
             query = """
             MATCH p = shortestPath(
                 (a:Attendee {AttendeeID:$id1})-[*]-(b:Attendee {AttendeeID:$id2})
@@ -461,28 +484,34 @@ def connection_path():
             RETURN p
             """
 
+            # Running query with user inputs
             result = session.run(query, id1=int(attendee1), id2=int(attendee2))
 
+            # Converting Neo4j query results into a list
             records = list(result)
 
             print("\nConnection Path")
             print("-----------------")
 
-            # No path found
+            # Id no path found, print statement to user
             if not records:
                 print("No connection path found")
                 return
 
+            # Getting shortest path from Neo4j and store it in a variable
             path = records[0]["p"]
 
+            # New list to store attendee ids from path
             connections = []
 
-            # Extract attendee IDs from path
+            # Extract attendee IDs from path and appending to connections list
             for node in path.nodes:
                 connections.append(str(node["AttendeeID"]))
 
+            # Printing shortest path ids with ->
             print(f"\n{' -> '.join(connections)}")
 
+            # Looping through nodes and retrieve attendee names from SQL and printing results
             for row in path.nodes:
 
                 mysql_cursor.execute(
@@ -495,6 +524,7 @@ def connection_path():
 
         return    
 
+# Main menu
 def display_menu():
     
     print("\nConference Management")
