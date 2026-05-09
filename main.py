@@ -37,7 +37,9 @@ def main():
         elif choice == "6":            
             view_rooms()
         elif choice == "7":
-            top_attendees()           
+            top_attendees()
+        elif choice == "8":
+            suggested_connections()           
         elif choice == "x":
             break
         else: 
@@ -215,7 +217,7 @@ def view_connections():
         attendee_name = attendee["attendeeName"]
 
         # Checking Neo4j connections query
-        with neo4j_driver.session() as session:
+        with neo4j_driver.session(database="attendeenetwork") as session:
             query = """
             MATCH (a:Attendee {AttendeeID: $id})
             OPTIONAL MATCH (a)-[:CONNECTED_TO]-(b:Attendee)
@@ -279,7 +281,7 @@ def add_connection():
             continue
         
         # Neoj4 session
-        with neo4j_driver.session() as session:
+        with neo4j_driver.session(database="attendeenetwork") as session:
 
             # Checking if connection exists
             connection_query = """
@@ -325,10 +327,10 @@ def top_attendees():
 
     # Top attendee
     print("\nTop 5 Connected Attendees")
-    print("------------------\n")
+    print("---------------------------\n")
 
     # Fetching number of connections, order by highest to lowest and return top 5
-    with neo4j_driver.session() as session:
+    with neo4j_driver.session(database="attendeenetwork") as session:
         query = """
         MATCH (a:Attendee)
         OPTIONAL MATCH (a)-[:CONNECTED_TO]-(b)
@@ -344,12 +346,71 @@ def top_attendees():
         for row in result:   
             mysql_cursor.execute(
                 "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
+                (row["id"],)            
+            )
+            atendee = mysql_cursor.fetchone()
+            print(f"{row['id']} | {atendee['attendeeName']} | {row['connections']}")
+
+    return            
+
+def suggested_connections():
+
+    attendee_id = input("Enter your ID: ")
+
+    # Validate numeric input
+    if not attendee_id.isdigit():
+        print("*** ERROR *** Invalid attendee ID")
+        return
+
+    attendee_id = int(attendee_id)
+
+    # Check attendee by ID
+    mysql_cursor.execute(
+        "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
+        (attendee_id,)
+    )
+    attendee = mysql_cursor.fetchone()
+
+    if not attendee:
+        print("*** ERROR *** Attendee does not exist")
+        return
+
+    print(f"\nSuggested Connections For {attendee['attendeeName']}")
+    print("---------------------------------------")
+
+    with neo4j_driver.session(database="attendeenetwork") as session:
+
+        query = """
+        MATCH (a:Attendee {AttendeeID:$id})-[:CONNECTED_TO]-(connection)-[:CONNECTED_TO]-(newconnection)
+
+        WHERE NOT (a)-[:CONNECTED_TO]-(newconnection)
+        AND newconnection.AttendeeID <> $id
+
+        RETURN newconnection.AttendeeID AS id
+        """
+       
+        result = session.run(query, id=attendee_id)
+
+        records = list(result)
+
+        if not records:
+            print("No suggested connections found")
+            return
+
+        for row in records:
+
+            mysql_cursor.execute(
+                "SELECT attendeeName FROM attendee WHERE attendeeID = %s",
                 (row["id"],)
             )
-            row = mysql_cursor.fetchone()
-            print(f"{result['id']} | {row['attendeeName']} | {result['connections']}")
 
-    
+            person = mysql_cursor.fetchone()
+
+            print(
+                f"{row['id']} | "
+                f"{person['attendeeName']}"
+            )
+    return   
 
 def display_menu():
     
@@ -364,6 +425,7 @@ def display_menu():
     print("5 - Add Attendee Connection")
     print("6 - View Rooms")
     print("7 - Top connected attendees")
+    print("8 - Suggested Connections")
     print("x - Exit")
 
 
@@ -381,3 +443,4 @@ if __name__== "__main__":
 # Neoj4 session: https://neo4j.com/docs/python-manual/current/transactions/
 # Order by and limit: https://stackoverflow.com/questions/58438626/neo4j-query-for-most-common-relationship
 # Fetch one/all: https://www.geeksforgeeks.org/dbms/querying-data-from-a-database-using-fetchone-and-fetchall/
+# New connection Neoj4: https://github.com/neo4j/neo4j/issues/9109
