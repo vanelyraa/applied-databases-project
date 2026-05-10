@@ -7,7 +7,6 @@
  - [Project Purpose](#project-purpose)
  - [Project Structure](#project-structure)
  - [Setup Instructions](#setup-instructions)
- - [Project Results](#project-results)
  - [Implementation](#implementation)
 
 
