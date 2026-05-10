@@ -24,7 +24,7 @@ APPLIED-DATABASES-PROJECT/
 │   ├── appdbproj.sql
 │   └── appdbprojNeo4j.txt
 │
-├── innovation.doc
+├── innovation.pdf
 ├── main.py
 ├── README.md
 └── requirements.txt
